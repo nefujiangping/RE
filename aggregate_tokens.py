@@ -9,20 +9,20 @@
 # head_tail_comb_indices: (N, R, MP, 2) this holds the head/tail mentions' indices. [..., 0] for head mentions, [..., 1] for tail mentions.
 # Supposed that the indices of head mentions are 1, 8, 9; and the tail mentions are 5, 6, then the `head_tail_comb_indices` for this realtion fact is:
 # ```
-# 	head: head_tail_comb_indices[bsz_index, rel_idx, :, 0] = [1, 1, 8, 8, 9, 9]
-# 	tail: head_tail_comb_indices[bsz_index, rel_idx, :, 1] = [5, 6, 5, 6, 5, 6]
+# 	head: head_tail_comb_indices[example_index, rel_idx, :, 0] = [1, 1, 8, 8, 9, 9]
+# 	tail: head_tail_comb_indices[example_index, rel_idx, :, 1] = [5, 6, 5, 6, 5, 6]
 # ```
 # Shape: (N, num_mentions, embedding_dim), this module obtains all mention's representation
 span_embeddings = self.entity_spans_embeddings(sequence_repr, entity_span_indices)
 
 # project each contextually encoded mention to head or tail, i.e., first two formulas in Sec. 2.3 of your paper
-# Shape: (N, num_mentions, embedding_dim)
+# Shape: (N, num_mentions, embedding_dim), W_h1(ReLU(W_h0 b_i))
 head_span_embeddings = self.mlp2head(span_embeddings)
-# Shape: (N, num_mentions, embedding_dim)
+# Shape: (N, num_mentions, embedding_dim), W_t1(ReLU(W_t0 b_i))
 tail_span_embeddings = self.mlp2tail(span_embeddings)
 
 N, R, MP, _ = head_tail_comb_indices.size()
-# (N, R*MP, 2), reshpae to (N, R*MP, 2)
+# (N, R*MP, 2), reshape to (N, R*MP, 2), i.e., flatten the R, MP dimension
 head_tail_comb_indices = head_tail_comb_indices.view(N, R*MP, 2)
 
 # Select representations of head/tail mentions from `span_embeddings`
@@ -32,9 +32,9 @@ head_embeddings = util.batched_index_select(head_span_embeddings, head_tail_comb
 tail_embeddings = util.batched_index_select(tail_span_embeddings, head_tail_comb_indices[:, :, 1])
 
 # apply dropout
-# Shape: (N, R*MP, E)
+# Shape: (N, R*MP, E), keep probability 0.35
 head_embeddings = self.head_drop(head_embeddings)
-# Shape: (N, R*MP, E)
+# Shape: (N, R*MP, E), keep probability 0.35
 tail_embeddings = self.tail_drop(tail_embeddings)
 
 # apply bilinear to each mention pair
